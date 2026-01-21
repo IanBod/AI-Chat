@@ -27,7 +27,11 @@ my $chat_pass = AI::Chat->new(
 ok( $chat_pass->isa( 'AI::Chat' ), 'Instantiation' );
 ok( $chat_pass->success, 'Successful object creation' );
 
-done_testing(6);
+my $res = $chat_pass->prompt("");
+ok(!$res, 'Empty prompt returns undef');
+is($chat_pass->error, "Missing prompt calling 'prompt' method", 'Correct error message');
+
+done_testing(8);
 
 
     

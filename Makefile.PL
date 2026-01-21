@@ -20,6 +20,7 @@ my %WriteMakefileArgs = (
         'Carp'           => '1.50',
         'JSON::PP'       => '2.00',
         'HTTP::Tiny'     => '0.014',
+        'Encode'         => '0',
     },
     dist  => { COMPRESS => q{perl -MIO::Compress::Gzip=gzip,:constants -e"my $$in = $$ARGV[0]; gzip($$in => qq($$in.gz), q(Level) => Z_BEST_COMPRESSION, q(BinModeIn) => 1) or die q(gzip failed); unlink $$in;"}, SUFFIX => 'gz', },
     clean => { FILES => 'AI-Chat-*' },

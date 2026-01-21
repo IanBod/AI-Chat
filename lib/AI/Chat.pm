@@ -6,6 +6,7 @@ use warnings;
 use Carp;
 use HTTP::Tiny;
 use JSON::PP;
+use Encode qw(encode_utf8);
 
 our $VERSION = '0.6';
 $VERSION = eval $VERSION;
@@ -89,12 +90,18 @@ sub _get_header_openai {
 sub prompt_json {
     my ($self, $prompt, $format, $temperature) = @_;
 
+    $self->{'error'} = '';
+    unless ($prompt) {
+        $self->{'error'} = "Missing prompt calling 'prompt_json' method";
+        return undef;
+    }
+
     $temperature //= 1.0;
 
-	# Ensure the word 'JSON' appears somewhere in the prompt
-	if ($prompt !~ /\bjson\b/i) {
-	    $prompt .= "\n\nReturn ONLY a valid JSON object as your entire response.";
-	}
+    # Ensure the word 'JSON' appears somewhere in the prompt
+    if ($prompt !~ /\bjson\b/i) {
+        $prompt .= "\n\nReturn ONLY a valid JSON object as your entire response.";
+    }
 
     my @messages = (
         { role => 'system', content => $self->{'role'} || '' },
@@ -102,12 +109,7 @@ sub prompt_json {
     );
 
     if ($format) {
-        my $hint;
-        if (ref($format) eq 'HASH' || ref($format) eq 'ARRAY') {
-            $hint = encode_json($format);
-        } else {
-            $hint = $format;
-        }
+        my $hint = ref($format) ? encode_json($format) : $format;
         push @messages, {
             role    => 'system',
             content => "Return ONLY valid JSON matching this structure:\n$hint",
@@ -119,26 +121,24 @@ sub prompt_json {
             'Authorization' => 'Bearer ' . $self->{'key'},
             'Content-type'  => 'application/json'
         },
-        content => encode_utf8(encode_json({
+        content => encode_json({
             model            => $self->{'model'},
             messages         => \@messages,
             response_format  => { type => 'json_object' },
             temperature      => $temperature,
-        }))
+        })
     });
     
-	unless ($response->{success}) {
-	    $self->{error} = $response->{content};
-	    return undef;
-	}
+    unless ($response->{success}) {
+        $self->{error} = $response->{content};
+        return undef;
+    }
 
     my $reply   = decode_json($response->{content});
     my $content = $reply->{choices}[0]{message}{content};
 
-	# Decode the content string before parsing it as JSON again
-    # JSON content from LLM is expected to be valid JSON string, which might contain escaped unicode.
-    # decode_json will return perl characters.
-	my $data = eval { decode_json(encode_utf8($content)) };
+    # LLMs frequently return UTF-8 in the JSON string
+    my $data = eval { decode_json(encode_utf8($content)) };
     if (!$data) {
         $self->{'error'} = "Invalid JSON returned: $@";
         return undef;
@@ -300,6 +300,30 @@ The creativity level of the response (default: 1.0).
 
 Temperature ranges from 0 to 2.  The higher the temperature,
 the more creative the bot will be in it's responses.
+
+=back
+
+=head2 prompt_json
+
+  my $data = $chat->prompt_json($prompt, $format, $temperature);
+
+Sends a prompt to the AI Chat API and returns the response as a decoded JSON object (hashref or arrayref).
+
+=head3 Parameters
+
+=over 4
+
+=item prompt
+
+C<required> The prompt to send to the AI.
+
+=item format
+
+An optional hint about the JSON structure expected. This can be a string, or a hashref/arrayref which will be JSON encoded and sent as a hint in a system message.
+
+=item temperature
+
+The creativity level of the response (default: 1.0).
 
 =back
 
