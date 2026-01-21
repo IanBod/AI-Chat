@@ -85,6 +85,68 @@ sub _get_header_openai {
     return $self->chat(\@messages, $temperature);
 }
 
+# Get a JSON encoded reply from a single prompt
+sub prompt_json {
+    my ($self, $prompt, $format, $temperature) = @_;
+
+    $temperature //= 1.0;
+
+	# Ensure the word 'JSON' appears somewhere in the prompt
+	if ($prompt !~ /\bjson\b/i) {
+	    $prompt .= "\n\nReturn ONLY a valid JSON object as your entire response.";
+	}
+
+    my @messages = (
+        { role => 'system', content => $self->{'role'} || '' },
+        { role => 'user',   content => $prompt },
+    );
+
+    if ($format) {
+        my $hint;
+        if (ref($format) eq 'HASH' || ref($format) eq 'ARRAY') {
+            $hint = encode_json($format);
+        } else {
+            $hint = $format;
+        }
+        push @messages, {
+            role    => 'system',
+            content => "Return ONLY valid JSON matching this structure:\n$hint",
+        };
+    }
+
+    my $response = $http->post($url{$self->{'api'}}, {
+        headers => {
+            'Authorization' => 'Bearer ' . $self->{'key'},
+            'Content-type'  => 'application/json'
+        },
+        content => encode_utf8(encode_json({
+            model            => $self->{'model'},
+            messages         => \@messages,
+            response_format  => { type => 'json_object' },
+            temperature      => $temperature,
+        }))
+    });
+    
+	unless ($response->{success}) {
+	    $self->{error} = $response->{content};
+	    return undef;
+	}
+
+    my $reply   = decode_json($response->{content});
+    my $content = $reply->{choices}[0]{message}{content};
+
+	# Decode the content string before parsing it as JSON again
+    # JSON content from LLM is expected to be valid JSON string, which might contain escaped unicode.
+    # decode_json will return perl characters.
+	my $data = eval { decode_json(encode_utf8($content)) };
+    if (!$data) {
+        $self->{'error'} = "Invalid JSON returned: $@";
+        return undef;
+    }
+
+    return $data;
+}
+
 # Get a reply from a full chat
 sub chat {
     my ($self, $chat, $temperature) = @_;
