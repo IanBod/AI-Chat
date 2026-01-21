@@ -1,0 +1,9 @@
+/.build/
+/_build/
+/blib/
+/Build
+/Build.bat
+/pm_to_blib
+*~
+/MYMETA.*
+/Makefile
