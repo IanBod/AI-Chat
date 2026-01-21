@@ -1,8 +1,12 @@
 Revision history for AI-Chat
 
-0.6	18th August 2024
-	 Changed default model from 'gpt-3.5-turbo-0125' to 'gpt-40-mini'
-	 This model is cheaper, more capable and faster.
+
+0.7x    21st January 2026
+	     Added 'prompt_json' method to return JSON response
+
+0.6	    18th August 2024
+	     Changed default model from 'gpt-3.5-turbo-0125' to 'gpt-4o-mini'
+	     This model is cheaper, more capable and faster.
 
 0.5     1st June 2024
          Added 'chat' method to support back and forth conversations
